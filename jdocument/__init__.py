@@ -6,6 +6,6 @@
         jDocument
         json2table
 """
-from .jdocument import jDocument
+from .jDocument import jDocument
 from .jsjson import loads, dumps
 

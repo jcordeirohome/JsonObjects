@@ -20,8 +20,8 @@ import statistics
 # import numpy
 from collections.abc import Sequence
 
-from JsonObjects import jsjson as js
-from JsonObjects.helpers import getDocAttributes, str2datetime
+from jDocument import jsjson as js
+from jDocument.helpers import getDocAttributes, str2datetime
 
 CONST_JDATA = 'jdata'
 CONST_TYPE_ARRAY = 'Array'

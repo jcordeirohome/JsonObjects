@@ -1,5 +1,5 @@
 import json
-from JsonObjects import jDocument
+from jDocument import jDocument
 
 
 def loadJsonSample(filename: str) -> dict | list:
@@ -10,7 +10,7 @@ def loadJsonSample(filename: str) -> dict | list:
 
 # products sample
 print("\n" + '-' * 20 + " STATISTICS")
-data = loadJsonSample('products_sample.json')
+data = loadJsonSample('../tests/products_sample.json')
 jProducts = jDocument(data)
 
 print(f"doc type = '{jProducts.type}'")
@@ -47,7 +47,7 @@ print(f"Price of first product whose price is greater than 28 = {jFirstProduct['
 
 # page sample
 print("\n" + '-' * 20 + " BRACKET NOTATION")
-data = loadJsonSample('page_sample.json')
+data = loadJsonSample('../tests/page_sample.json')
 jPage = jDocument(data)
 
 print(f"doc type = '{jPage.type}'")
@@ -61,7 +61,7 @@ print(f"datatype of attribute 'total' = {jPage.getDataType('total')}")
 
 # page sample
 print("\n" + '-' * 20 + " DOT NOTATION")
-data = loadJsonSample('page_sample.json')
+data = loadJsonSample('../tests/page_sample.json')
 jPage = jDocument(data)
 
 print(f"doc type = '{jPage.type}'")

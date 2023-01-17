@@ -1,32 +1,13 @@
 """
+jDocument
+
+2022/january/1 - Jose Carlos Cordeiro Martins
+
+The jDocument class allows you to encapsulate a json document with a dictionary (dict) or a list of dictionary (list).
+In this way, it is possible to perform several operations on the document to access, query and filter json data.
+
+Classes:
     jDocument
-
-    05/Out/2020 - José Carlos Cordeiro
-
-    Este e módulo implementa uma classe para encapsular um documento ou uma lista de documentos Json
-    que provê um conjunto de HELPERs para acessar e manipular o seu conteúdo:
-    . Encapsular o documento num objeto que fornece serviços para inspecionar e atualizar o documento.
-    . Transformar o documento numa tabela DataFrame.
-
-    Um documento json é composto por:
-    a) Uma coleção de pares de chave/valor como:
-    {
-        "chave1" : valor1,
-        "chave2" : valor,
-        ...
-    }
-
-    b) Ou por um Array de documentos como:
-    [
-        { documento 1},
-        { documento 2},
-        ...
-    ]
-
-    Classes:
-        jDocument
-        DotDict
-        jDotDict
 """
 
 from __future__ import annotations
@@ -36,14 +17,11 @@ import re
 import sys
 from copy import deepcopy
 import statistics
-import numpy
+# import numpy
 from collections.abc import Sequence
 
 from JsonObjects import jsjson as js
 from JsonObjects.helpers import getDocAttributes, str2datetime
-
-# função usada em macros eval()
-from JsonObjects.helpers import getDateGroup
 
 CONST_JDATA = 'jdata'
 CONST_TYPE_ARRAY = 'Array'
@@ -53,80 +31,12 @@ CONST_ERR_OBJECT = 'This Json document must be a Object'
 CONST_ERR_ITEM = 'The Item must be a jDocument or a Json Dictionary (dict) or a list of dic'
 
 
-class DotDict(dict):
-    def __bool__(self):
-        return True
-
-    def __getattr__(self, key):
-        try:
-            # se o atributo for um dict, retorna o dict
-            if isinstance(self[CONST_JDATA][key], dict):
-                return DotDict({CONST_JDATA: self[CONST_JDATA][key]})
-
-            # senão retorna o elemento
-            else:
-                return self[CONST_JDATA][key]
-
-        except KeyError as k:
-            raise AttributeError(k)
-
-    def __setattr__(self, key, value):
-        self[CONST_JDATA][key] = value
-        # self._jdata.set({key, value})
-
-    def __delattr__(self, key):
-        try:
-            del self[CONST_JDATA][key]
-        except KeyError as k:
-            raise AttributeError(k)
-
-
-class jDotDict(dict):
-    def __bool__(self):
-        return True
-
-    def __getattr__(self, key):
-        try:
-            at = self[CONST_JDATA][key]
-
-            # se o atributo for um dict, retorna o dict
-            if isinstance(at, dict):
-                return jDotDict({CONST_JDATA: at})
-
-            # se o atributo for um list
-            elif isinstance(at, list):
-                # se o primeiro elemento da lista for um dict (lista de documentos), retorna um jDocument com a lista
-                # senão retorna o elemento
-                return jDocument(at) if len(at) > 0 and isinstance(at[0], dict) else jDotDict({CONST_JDATA: at})
-
-            # senão retorna o elemento
-            else:
-                return at
-
-        except KeyError as k:
-            raise AttributeError(k)
-
-    def __setattr__(self, key, value):
-        self[CONST_JDATA][key] = value
-        # self._jdata.set({key, value})
-
-    def __delattr__(self, key):
-        try:
-            del self[CONST_JDATA][key]
-        except KeyError as k:
-            raise AttributeError(k)
-
-
 class jDocument(Sequence):
     """
     Representa um documento Json ou uma lista de documentos.
     """
 
     def __init__(self, jdata=None):
-        """
-        Returns:
-            object:
-        """
         super().__init__()
 
         self._current = -1  # para iterações na classe
@@ -165,282 +75,320 @@ class jDocument(Sequence):
         self._searhDocs_qty = None
 
     def __bool__(self):
+        """
+        Depending on the json type, it has the default behavior of "dict" or "list".
+        """
         return len(self._jdata.keys()) > 0 if self._type == CONST_TYPE_OBJECT else len(self._jdata) > 0
 
     def __iter__(self):
+        """
+        Depending on the json type, it iterates over the "dict" keys or over the "list" elements.
+        """
         self._current = -1
         return self
 
     def __next__(self):
+        """
+        Depending on the json type, it iterates over the "dict" keys or over the "list" elements.
+        """
         self._current += 1
         if self._current < len(self._jdata):
             return jDocument(self._jdata[self._current]) if self._type == CONST_TYPE_ARRAY else list(self._jdata.values())[self._current]
 
-        # chegou no último, reinicia
+        # reached the last element, restart
         self._current = -1
-
         raise StopIteration
 
     def __repr__(self):
+        """
+        For a json containing a dict, it returns the str() of the dictionary; for a list it returns the type and number of elements.
+        """
         if self._type == CONST_TYPE_ARRAY:
-            return f"{__class__.__name__}<{self._type}> : { len(self._jdata) } elements"
+            return f"{__class__.__name__}<{self._type}> : {len(self._jdata)} elements"
         else:
-            return f"{__class__.__name__}<{self._type}> : { str(self._jdata) }"
+            return f"{__class__.__name__}<{self._type}> : {str(self._jdata)}"
 
     def __hash__(self):
+        """
+        Converts json to string and returns the "hash" of this string.
+        """
         return hash(self.getJson(flagPretty=False))
 
     def __eq__(self, other):
+        """
+        Depending on the json type, it has the default behavior of "dict" or "list".
+        """
         return self.__class__ == other.__class__ and self.__hash__() == other.__hash__()
 
     def __len__(self):
+        """
+        Depending on the json type, it returns the number of "dict" keys or "list" elements.
+        If the document is empty, it returns 0.
+        """
         if self._type == CONST_TYPE_ARRAY:
             return len(self._jdata)
 
-        return 0
+        return len(self._jdata.keys())
 
     def __getitem__(self, item):
+        """
+        Depending on the json type, it returns the value associated with a "dict" key or a "list" item.
+        """
         return jDocument(self._jdata[item]) if self._type == CONST_TYPE_ARRAY else self.get(item)
 
     def __setitem__(self, key, value):
-        if self._type != CONST_TYPE_OBJECT:
-            raise Exception(CONST_ERR_OBJECT)
-
-        self.set({key: value})
+        """
+        Depending on the json type, it updates the value of a "dict" key or a "list" item.
+        """
+        if self._type == CONST_TYPE_ARRAY:
+            self._jdata[key] = value
+        else:
+            self.set({key: value})
 
         return value
 
-    def __delitem__(self, key):
+    def __delitem__(self, item):
+        """
+        Depending on the type of json, it removes a key from "dict" or an element from "list".
+        """
         if self._type == CONST_TYPE_ARRAY:
-            self.removeDocs(index=key)
+            self.removeDocs(position=item)
         else:
-            self.removeAttrib(attrib=key)
+            self.removeAttrib(attribute=item)
 
     def __contains__(self, item):
+        """
+        Depending on the json type, it informs if a key exists in the "dict" or if an element exists in the "list".
+        """
         return item in (self._jdata.values() if self._type == CONST_TYPE_ARRAY else self._jdata.keys())
 
     def __reversed__(self):
+        """
+        Inverts the sequence of the elements of a "list", returns an error if the json is a "dict".
+        """
         if self._type != CONST_TYPE_ARRAY:
             raise Exception(CONST_ERR_ARRAY)
 
         for doc in self._jdata[::-1]:
             yield jDocument(doc)
 
-    @property
-    def doc(self) -> DotDict | None:
+    def __deepcopy__(self, memodict=None) -> jDocument:
         """
-        Retorna uma referência para o dicinionário cujas chaves podem ser acessadas por meio da notação de pontos
-        Sempre retorna o atributo no seu tipo nativo (dict, list, str, etc.)
+        Creates a clone of the json document by calling the clone() method.
+        """
+        return self.clone()
 
-        Exemplo:
+    @property
+    def doc(self) -> DotDict | jDocument:
+        """
+        Returns a reference to the dictionary whose keys can be accessed using the dot notation.
+
+        Example:
             doc = {'nome': 'maria', {'ocupacao': {'profissao': 'analista'}}}
-            print(jDoc.doc.nome)
-            print(jDoc.doc.nome.ocupacao.profissao)
-            jDoc.doc.nome = 'jose'
+            print(jDoc.doc.name)
+            print(jDoc.doc.name.ocupation.name)
+            jDoc.doc.name = 'jose'
 
         Returns:
-            [DotDict]: referência para o dicionário, se o documento for uma lista, então retorna None
+            [DotDict]: for dict json returns a reference to the document
         """
         if isinstance(self._jdata, dict):
             return DotDict({CONST_JDATA: self._jdata})
 
-        return None
+        return jDocument(self._jdata)
 
     @property
-    def jdoc(self) -> jDotDict | None:
+    def jdoc(self) -> jDotDict | jDocument:
         """
-        Retorna uma referência para o dicionário cujas chaves podem ser acessadas por meio da notação de pontos
-        Quando o atributo for uma lista, retorna um jDocument
+        Returns a reference to the dictionary whose keys can be accessed using the dot notation.
 
-        Exemplo:
+        Example:
             doc = {'nome': 'maria', {'ocupacao': {'profissao': 'analista'}}}
-            print(jDoc.doc.nome)
-            print(jDoc.doc.nome.ocupacao.profissao)
-            jDoc.doc.nome = 'jose'
+            print(jDoc.jdoc['name'])
+            print(jDoc.jdoc['name.ocupation.name'])
+            jDoc.jdoc['name'] = 'jose'
 
         Returns:
-            [jDotDict]: referência para o dicionário, se o documento for uma lista, então retorna None
+            [jDotDict]: for dict json returns a reference to the document
         """
-        if isinstance(self._jdata, dict):
-            return jDotDict({CONST_JDATA: self._jdata})
-
-        return None
+        return self.doc
 
     @property
     def jData(self) -> dict:
         """
-        Retorna uma referência para o dicionário que compoem o documento Json.
+        Returns a reference to the raw data contained in the dictionary (a pointer).
 
         Returns:
-            [dict]: referência para o dicinionário
+            [dict]: reference to the raw data contained in the dictionary
         """
         return self._jdata
 
     @property
     def type(self) -> str:
         """
-        Retorna o tipo do documento Json, que pode ser um objeto ou uma lista de objetos
+        Returns the json type, for a dictionary returns 'Object', for list returns 'Array'.
 
         Returns:
-            str: CONST_TYPE_OBJECT para um objeto ou CONST_TYPE_ARRAY para uma lista de objetos
+            str: 'Object or 'Array'
         """
         return self._type
 
-    def getNumOfItems(self, attribute: str = None, defaulf: int = 0) -> int:
-        """
-        Informa a quantidade de itens em uma lista, que pode ser o próprio do documento ou um atributo do documento.
-
-        Args:
-            attribute: nome do atributo, se None será considerado o próprio documento
-                       default = None
-           defaulf: valor default para retornar no lugar de None
-
-        Returns:
-            int: quantidade de elementos na lista
-            None: se o atributo não existir ou não for uma lista
-        """
-        if not attribute:
-            at = self._jdata
-        else:
-            at = self.value(attribute)
-            if not at:
-                return defaulf
-            # endif
-        # endif
-
-        if isinstance(at, list):
-            return len(at)
-        # endif
-
-        return defaulf
-
-    def getAttributes(self, flagDeepDocs: bool = True) -> dict:
-        """
-        Retorna um dicionário com a lista de atributos contidos nos objetos.
-
-        Args:
-            flagDeepDocs (bool, optional): se True coleta também os atributos de documentos aninhados.
-
-        Returns:
-            dict: dicionário com os nomes e tipos dos atributos.
-        """
-        # dicionário onde serão calatalogados os atributos
-        attribs = {}
-
-        # se há uma lista de objetos no documento
-        if self._type == CONST_TYPE_ARRAY:
-            # verifica os atributos de cada um deles
-            if len(self._jdata) > 0:
-                list(map(lambda obj: getDocAttributes(attribs, obj, flagDeepDocs=flagDeepDocs), self._jdata))
-            # endif --
-
-        # senão verifica os atributos do objeto contido no documento
-        else:
-            getDocAttributes(attribs, self._jdata, flagDeepDocs=flagDeepDocs)
-        # endif --
-
-        return attribs
-
-    def getDataType(self, attrib: str) -> str | None:
-        """
-        Informa o tipo de um atributo.
-
-        Args:
-            attrib: nome do atributo
-
-        Returns:
-            str: nome do atributo
-        """
-        val = self.value(attrib)
-
-        if not val:
-            return None
-        # endif
-
-        if isinstance(val, dict):
-            return CONST_TYPE_OBJECT
-        # endif
-
-        if isinstance(val, list):
-            return CONST_TYPE_ARRAY
-        # endif
-
-        refind = re.compile(r".*'(.*)'.*")  # RegEx para extrair o tipo do atributo
-        gp = refind.search(str(type(val)))
-        tp = gp.group(1)
-
-        if '.' in tp:
-            tk = tp.split('.')
-            tp = tk[-1]
-        # endif
-
-        return tp
-
     def isArray(self) -> bool:
         """
-        Retorna True se o documento Json for uma lista, senão retorna False.
-
-        Returns:
-            bool: True se o documento for uma lista.
+        Returns "True" if the json is a list of documents (list).
         """
         return self._type == CONST_TYPE_ARRAY
 
     def isObject(self) -> bool:
         """
-        Retorna True se o documento Json for um objeto, senão retorna False.
-
-        Returns:
-            bool: True se o documento for um objeto.
+        Returns "True" if the json is a single document (dict).
         """
         return self._type == CONST_TYPE_OBJECT
 
-    def getJson(self, flagPretty: bool = False, ensure_ascii: bool = False) -> str:
+    def getJson(self, flagPretty: bool = False, flagEnsureAscii: bool = False) -> str:
         """
-        Converte o objeto Json num string contendo o documento Json correspondente.
+        Convert json to a string.
 
         Args:
-            flagPretty: Gera um documento 'bonitinho' , com identação
-            ensure_ascii: Transforma todos os caracters em ASCII (para requests precisa ser TRUE)
+            flagPretty: if "True" the output is a pretty document
+            flagEnsureAscii: converts all characters into ASCII, for requests (web APIs) it must be "True".
 
         Returns:
-            str: documento Json
+            str: json document
         """
         if flagPretty:
-            return js.dumps(self._jdata, flagPretty=flagPretty, ensure_ascii=ensure_ascii)
+            return js.dumps(self._jdata, flagPretty=flagPretty, ensure_ascii=flagEnsureAscii)
 
-        return js.dumps(self._jdata, flagPretty=flagPretty, ensure_ascii=ensure_ascii)
+        return js.dumps(self._jdata, flagPretty=flagPretty, ensure_ascii=flagEnsureAscii)
+
+    def clone(self) -> jDocument:
+        """
+        Does a deepcopy of the json document.
+
+        Returns:
+            jDocument: a copy of the document
+        """
+        return jDocument(deepcopy(self._jdata))
+
+    def getAttributes(self, flagDeepDocs: bool = True) -> dict:
+        """
+        Returns a dictionary with the list of attributes contained in the documents, informing the name and type of each attribute.
+
+        Args:
+            flagDeepDocs: if "True" then it also returns the attributes of subdocuments that may exist within the main document.
+
+        Returns:
+            dict: dictionary with attributes and data types
+        """
+        # dictionary where the attributes will be cataloged
+        attributes = {}
+
+        # if there is a list of objects in the document
+        if self._type == CONST_TYPE_ARRAY:
+            # checks the attributes of each of them
+            if self._jdata:
+                list(map(lambda obj: getDocAttributes(attributes, obj, flagDeepDocs=flagDeepDocs), self._jdata))
+
+        # else checks the attributes of the object contained in the document
+        else:
+            getDocAttributes(attributes, self._jdata, flagDeepDocs=flagDeepDocs)
+
+        return attributes
+
+    def exists(self, attribute: str) -> bool:
+        """
+        Check if an attribute exists in the document, returns "True" if it exists.
+
+        Examples:
+            jPerson.exists('name')
+
+        Returns:
+            bool: "True" if attribute exists
+        """
+        return self.value(attribute, None, flagRaiseError=False)
+
+    def removeAttrib(self, attribute: str | list) -> int:
+        """
+        For json of type dict removes an attribute from the document, for a list removes the attribute from all elements in the list.
+
+        Examples:
+            jPerson.removeAttrib('name')
+            jPerson.removeAttrib(['name', 'age'])
+
+        Args:
+            attribute (str | list): attribute name or list of names
+
+        Returns:
+            int: the number of occurrences removed from the attribute.
+        """
+        # if a list of attribute names was provided
+        q = 0
+        if isinstance(attribute, list):
+            for at in attribute:
+                q += self.removeAttrib(attribute=at)
+            return q
+
+        # if the Json document is an object
+        if self._type == CONST_TYPE_OBJECT:
+            q = 0
+            if attribute:
+                # if the name of a specific attribute was informed
+                if '.' in attribute:
+                    # if an attribute of a subObject was informed
+                    at = attribute.split('.')
+                    lastAt = at.pop()
+                    obj = self
+
+                    for atSub in at:
+                        obj = obj.get(atSub)
+
+                    q += obj.removeAttrib(lastAt)
+
+                else:
+                    # otherwise, it is an attribute of the object itself
+                    if attribute in self._jdata:
+                        # if attribute exists on this object then remove attribute
+                        del self._jdata[attribute]
+                        q = 1
+
+            return q
+
+        # otherwise, if it is an ARRAY
+        q = 0
+        for obj in self:
+            # removes the attribute on each object in the list
+            q += obj.removeAttrib(attribute=attribute)
+
+        return q
 
     def value(self, attribute=None, defaultValue: any = None, flagRaiseError: bool = False) -> any:
         """
-        Retorna um atributo dentro de um objeto Json no seu formato nativo (dict, list, str, int, etc.)\n
-        Se não for informado nenhum 'attribute' então retorna o próprio objeto.
+        Returns the raw data value of an attribute in its native format (whether a "dict" or "list" returns a pointer). If the name of any attribute is not informed, then it returns the object itself.
+        The attribute name can be given using the json punctuation convention.
 
-        Por exemplo:\n
-            'pessoa.endereco.rua' -> retorna o atributo 'rua' do objeto 'endereco' contido em 'pessoa'\n
-            'pessoa.enderecos[1].rua' -> retorna o atributo 'rua' do segundo elemento da lista 'enderecos' contida em 'pessoa'\n
-            'Array[2].nome' -> quando o documento Json contem uma lista usa-se a palavra CONST_TYPE_ARRAY mais o indide, neste caso retorna o atributo 'nome' do item 2 da lista\n
-        Em caso de erro retorna uma string '*** Error descriton'
+        Examples:
+            jSquad.get('team[1].address.street') 	# retorna um 'string'
+            jSquad.get('team[1].address') 			# retorna um 'dict'
 
         Args:
-            attribute (str | list): nome do atributo ou lista de nomes
-            defaultValue (any) : se o atributo não existir, retorna este valor
-            flagRaiseError (bool) : se True gera erro caso o atributo não existea, senão retorna o defaultValue
+            attribute (str | list): attribute name or list of names
+            defaultValue (any) : if the attribute does not exist, return this value
+            flagRaiseError (bool) : if True it generates an error if the attribute does not exist, otherwise it returns the defaultValue
 
         Returns:
-            any: se o documento Json for um objeto e o atributo for um string, retorna o valor correspondente ao atributo.
-            dict: se o documento Json for um objeto e for pedido uma lista de atributos, retorna um dicionário com 'attribute': 'valor'.
-            list: se o documento Json for uma lista de objetos, uma lista de valores.
+            any: if the Json document is an object and the attribute is a string, it returns the value corresponding to the attribute.
+            dict: if the Json document is an object and a list of attributes is requested, it returns a dictionary with 'attribute': 'value'.
+            list: if the Json document is a list of objects, a list of values.
         """
-        # se não foi informado nenhum atributo, retorna o próprio dicionário ou array
+        # if no attribute was informed, it returns the dictionary or array itself
         if not attribute:
             return self._jdata
-        # endif
 
-        # se foi informado um único atributo
+        # if a single attribute was entered
         if isinstance(attribute, str):
-            # se o documento Json é uma lista
+            # if the Json document is a list
             if self._type == CONST_TYPE_ARRAY:
-                # se o atributo procurado não começa com CONST_TYPE_ARRAY
+                # if the sought attribute does not start with "ARRAY"
                 if not attribute.startswith(CONST_TYPE_ARRAY):
                     if '[' in attribute:
                         # tratamento especial para listas
@@ -464,13 +412,9 @@ class jDocument(Sequence):
                                 return self.findOneDoc({p1: p2})
                             else:
                                 return self.get(lst).findOneDoc({p1: p2})
-                        # endif --
                     else:
                         # coleta uma lista de valores, um para cada objeto da lista
                         return [jDocument(obj).value(attribute, defaultValue) for obj in self._jdata]
-                    # endif --
-                # endif --
-            # endif --
 
             # o documento Json é um documento único ou
             # é uma lista e o atributo procurado começa com 'Array'
@@ -485,9 +429,6 @@ class jDocument(Sequence):
                         raise Exception(f"*** {sys.exc_info()[0]}")
                     else:
                         return defaultValue
-                    # endif --
-                # end_except --
-            # endif --
 
             k = attribute.split('.')
             val = defaultValue
@@ -517,19 +458,16 @@ class jDocument(Sequence):
                         # endif --
                     else:
                         val = dic[tk]
-                    # endif --
+
                     dic = val
-                # endfor --
+
             except Exception:
                 if flagRaiseError:
                     raise Exception(f"*** {sys.exc_info()[0]}")
                 else:
                     val = defaultValue
-                # endif --
-            # end_except --
 
             return val
-        # endif --
 
         # se foi informado uma lista de atributos
         if isinstance(attribute, list):
@@ -548,40 +486,25 @@ class jDocument(Sequence):
                     for obj in self._jdata
                 ]
                 return lst
-            # endif --
-        # endif --
 
         return None
 
-    def exists(self, attribute: str) -> bool:
-        """
-        Informa se um atributo existe no documento
-
-        Args:
-            attribute: nome do atributo
-
-        Returns:
-            bool: True se existir ou False caso contrário
-        """
-        return self.value(attribute, None, flagRaiseError=False)
-
     def get(self, attribute: str, defaultValue=None, flagRaiseError: bool = False, flagReturnEmptyListAsDoc: bool = False) -> any:
         """
-        Se o documento Json for um objeto, retorna o valor de um atributo do objeto Json.
-        Se o documento for uma lista de objetos, retorna um jDocument com a lista de valores.\n
-        Por exemplo:\n
-            'Pessoa.Endereco.Rua' -> retorna o atributo 'Rua' do objeto 'Endereco' contido em 'Pessoa'\n
-            'Pessoa.Enderecos[1].Rua' -> retorna o atributo 'Rua' do segundo elemento da lista 'Enderecos' contida em 'Pessoa'\n
-        Em caso de erro retorna uma string '*** Error descriton'
+        Similar to value(), but if the returned value is a 'dict' or 'list' then the returned value is converted to "jDocument".
+
+        Examples:
+            jSquad.get('team[1].address.street') 	# retorns a 'string'
+            jSquad.get('team[1].address') 			# retorns a 'jDocument'
 
         Args:
-            attribute (str): chave
-            defaultValue (any) : se a chave não existir, retorna este valor
-            flagRaiseError (bool) : se True gera erro caso o atributo não existea, senão retorna o defaultValue
-            flagReturnEmptyListAsDoc (bool) : se True, ao retornar uma lista vazia, converte a lista pára jDocument
+            attribute (str): attribute name.
+            defaultValue (any) : if key does not exist, return this value
+            flagRaiseError (bool) : if True it generates an error if the attribute does not exist, otherwise it returns the defaultValue
+            flagReturnEmptyListAsDoc (bool) : if True, when returning an empty list, convert the list to jDocument
 
         Returns:
-            any: objeto da lista ou valor correspondente à chave (str, int, double, etc.)
+            any: attribute value,.
         """
         val = self.value(attribute, defaultValue, flagRaiseError)
 
@@ -589,33 +512,32 @@ class jDocument(Sequence):
             return jDocument(val)
 
         if isinstance(val, list):
-            if len(val) > 0 and isinstance(val[0], dict):
+            if val and isinstance(val[0], dict):
                 return jDocument(val)
-            # endif
 
             if not val and flagReturnEmptyListAsDoc:
                 return jDocument(val)
-            # endif
-        # endif --
 
         return val
 
     def set(self, values: dict) -> any:
         """
-        Adiciona ou atualiza um atributo no documento Json. Se o documento for uma lista, atualiza o atributo para todos os objetos da lista.
-        jObj.set({'nome': 'maria', {'idade': 10}})
+        Adds or updates one or more attributes in the document. If the document is a list then it performs the operation for all documents in the list.
+
+        Examples:
+            jPerson = jSquad['team').item(1)
+            jPerson.set({'name': 'maria', 'age': 10})
 
         Args:
-            values (dict): dicionário com os nomes dos atributos a serem adicionados e seus respectivos valores
+            values (dict): dictionary with attributes and values to be updated in the json document.
 
         Returns:
-            any: o valor do último atributo que foi adicionado ou atualizado
+            any: the value of the last attribute that was added or updated
         """
         # se o documento Json for um objeto
         if self._type == CONST_TYPE_OBJECT:
-            if len(values.keys()) == 0:
+            if not values.keys():
                 return None
-            # endif
 
             returnAt = ''
 
@@ -632,7 +554,6 @@ class jDocument(Sequence):
                     if not self.get(lstAttrib[0]):
                         # cria o subdocumento se não existir
                         self.set({lstAttrib[0]: {}})
-                    # endif
 
                     self.get(lstAttrib[0]).set({subAt: values[at]})
 
@@ -642,9 +563,6 @@ class jDocument(Sequence):
                         self._jdata[at] = values[at].value()
                     else:
                         self._jdata[at] = values[at]
-                    # endif --
-                # endif --
-            # endfor --
 
             if isinstance(values[returnAt], dict):
                 return jDocument(values[returnAt])
@@ -656,103 +574,117 @@ class jDocument(Sequence):
             # adiciona/atualiza o atributo em todos os objetos da lista
             for obj in self._jdata:
                 obj.set(values)
-            # endif --
 
             return None
-        # endif --
+
+    def copyFrom(self, jDoc: jDocument):
+        """
+        Copies to the document all the attributes of another document passed as a parameter.
+
+        Examples:
+            jPerson.copyFrom(jOtherPerson)
+
+        Args:
+            jDoc: json document from which attributes and values will be copied from.
+        """
+        self.clear()
+        attribDict = jDoc.getAttributes(False)
+        for at, tp in attribDict.items():
+            value = jDoc.value(at)
+            if tp == CONST_TYPE_OBJECT:
+                self.set({at: value.copy()})
+            elif CONST_TYPE_ARRAY in tp:
+                self.set({at: list(value)})
+            else:
+                self.set({at: value})
+
+    def getDataType(self, attribute: str) -> str | None:
+        """
+        Returns the data type of document attribute, the types will be the same as in Python (integer, string, etc.).
+
+        Examples:
+            jPerson.getDataType('Address.Street')
+
+        Args:
+            attribute: attribute name.
+
+        Returns:
+            str: datatype name.
+        """
+        val = self.value(attribute)
+
+        if not val:
+            return None
+
+        if isinstance(val, dict):
+            return CONST_TYPE_OBJECT
+
+        if isinstance(val, list):
+            return CONST_TYPE_ARRAY
+
+        refind = re.compile(r".*'(.*)'.*")  # RegEx para extrair o tipo do atributo
+        gp = refind.search(str(type(val)))
+        tp = gp.group(1)
+
+        if '.' in tp:
+            tk = tp.split('.')
+            tp = tk[-1]
+
+        return tp
 
     def clear(self):
         """
-        Limpa a lista de objetos.
+        Cleans the json content, keeping its type ('Array' or 'Object').
         """
         self._jdata.clear()
 
-    def item(self, idx: int) -> any:
+    def item(self, position: int) -> any:
         """
-        Retorna um objeto dentro de uma lista, se o conteúdo do documento Json não for uma lista gera erro\n
+        Returns an element from the list of documents, the json needs to be a 'list' otherwise it generates an error.
+
+        Examples:
+            # access the fourth element of the list
+            jPerson = jTeam.item(3)
+            jPerson = jTeam[3]
 
         Args:
-            idx (int): índice da lista
+            position (int): position of the element in the list.
 
         Returns:
-            jDocument: um objeto da lista de documentos
+            jDocument: item from the list
         """
         if self._type != CONST_TYPE_ARRAY:
             raise Exception(CONST_ERR_ARRAY)
 
-        return jDocument(self._jdata[idx])
+        return jDocument(self._jdata[position])
 
-    def removeAttrib(self, attrib: str = None, attribs: list = None) -> int:
+    def addDoc(self, item: jDocument | dict | list) -> jDocument:
         """
-        Remove um atributo do documento Json. Se o documento for uma lista, removeAttrib de todos os objetos da lista.
+        Adds one or more documents to the list, the json needs to be a 'list' otherwise it generates an error.
+        When the informed parameter is a list of documents, then this list will be added to the json (at the end of the list).
+        Returns the document itself that was included.
+
+        Examples:
+            jTeam.addDoc({
+                'Name': 'Maria',
+                'Age': 30,
+                'Address': {
+                    'Street': 'Av Pablo Picasso'
+                    'Number': 33,
+                    'City': 'Sao Paulo'
+                }
+            })
+
+            jColors.addDoc([
+                { 'color': 'red', 'priority': 1},
+                { 'color': 'green', 'priority': 2},
+            ]
 
         Args:
-            attrib (str): nome do atributo, se informado o atributo com este nome será removido
-            attribs (list): lista de nomes de atributos, se informado todos eles serão removidos
+            item (jDocument | dict | list): element (list or dict) to be added to the list of documents.
 
         Returns:
-            int: quantidade de atributos removidos
-        """
-        # se foi informado uma lista de nomes de atributos
-        q = 0
-        if attribs:
-            for at in attribs:
-                q += self.removeAttrib(attrib=at)
-            # endfor --
-
-            return q
-        # endif --
-
-        # se o documento Json for um objeto
-        if self._type == CONST_TYPE_OBJECT:
-
-            q = 0
-            if attrib:
-                # se foi informado o nome de um atributo específico
-                if '.' in attrib:
-                    # se foi informado um atributo de um subObjeto
-                    at = attrib.split('.')
-                    lastAt = at.pop()
-                    obj = self
-
-                    for atSub in at:
-                        obj = obj.get(atSub)
-                    # endfor --
-
-                    q += obj.removeAttrib(lastAt)
-
-                else:
-                    # senão, é um atributo do próprio objeto
-                    if attrib in self._jdata:
-                        # se o atributo existe neste objeto, removeAttrib
-                        del self._jdata[attrib]
-                        q = 1
-                    # endif --
-                # endif --
-            # endif --
-
-            return q
-        # endif --
-
-        # senão, se é um ARRAY
-        q = 0
-        # for obj in self._jdata:
-        for obj in self:
-            # removeAttrib o atributo em cada objeto da lista
-            q += obj.removeAttrib(attrib=attrib, attribs=attribs)
-        # endfor --
-
-        return q
-
-    def addDoc(self, item) -> jDocument:
-        """
-        Adiciona um objeto ou uma lista de objetos ao documento Json, que precisa ser uma lista de objetos.
-
-        Args:
-            item (jDocument | dict | list): dict ou objeto (do tipo jDocument) a ser adicinado na lista.
-
-        Returns:
-            jDocument: retorna o objeto jDocument que foi adicionado
+            jDocument: returns the added element
         """
         if self._type != CONST_TYPE_ARRAY:
             raise Exception(CONST_ERR_ARRAY)
@@ -760,92 +692,73 @@ class jDocument(Sequence):
         if isinstance(item, jDocument):
             obj = item
             if item.type == CONST_TYPE_ARRAY:
-                # item é um jDocument com uma lista de objetos (list)
-                self._jdata.extend(item.value())
+                # it is a list
+                list(self._jdata).extend(item.value())
             else:
-                # item é um jDocument com um objeto (dict)
-                self._jdata.append(item.value())
+                # it is a dict
+                list(self._jdata).append(item.value())
             # endif --
 
         elif isinstance(item, dict):
             obj = jDocument(item)
-            self._jdata.append(item)
+            list(self._jdata).append(item)
 
         elif isinstance(item, list):
             obj = jDocument(item)
-            self._jdata.extend(item)
+            list(self._jdata).extend(item)
 
         else:
             raise Exception(CONST_ERR_ITEM)
-        # endif --
 
         return obj
 
-    def removeOneDoc(self, filters: any = None) -> int:
+    def removeOneDoc(self, filters: dict | list = None) -> int:
         """
-        Remove todos os objetos que corresponderem a um filtro informado (uma coleção de chave/valor).
-        O documento Json precisa ser uma lista de objetos.
-        A pesquisa é 'Case Insensitive' e trata caracteres acentuados como não acentuados.
+        Removes from the list the first N documents that match the informed filter, the json needs to be a 'list' otherwise it generates an error.
+        If N is not informed then all documents will be removed.
+        The filter is a dictionary with attributes and values, the search is 'Case Insensitive'.
+        Returns the number of documents removed from the list.
+
+        Examples:
+            jTeam.removeDocs(filters={'Name': 'Maria'})					# removes the elements whose 'Name' is equals to 'Maria'
+            jTeam.removeDocs(filters=[{'Name': 'Maria'}, {'Age': 30}])	# removes the elements whose 'Name' is equals to 'Maria' and 'Age' is equals to 30
+            jTeam.removeDocs(index=3)									# removes the fourth element from the list
 
         Args:
-            filters (dict | list):  conjunto de condições para validar cada objeto da coleção\n
-                                    dict -> dicionário com os nomes dos atributos e expressão regular correspondentes como {'nome' : 'maria'}, os objetos que derem match serão removidos
-                                    list -> lista de condições (dict), se o objeto corresponder a uma das condições da lista será removido
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
 
         Returns:
-            int: quantidade de objetos removidos
+            int: the number of documents removed from the list.
         """
         return self.removeDocs(filters=filters, qty=1)
 
-    def removeDocs(self, array: str = None, index: int = None, filters: any = None, qty: int = None) -> int:
+    def removeDocs(self, position: int = None, filters: dict | list = None, qty: int = None) -> int:
         """
-        Remove todos os objetos que corresponderem a um filtro informado (uma coleção de chave/valor).
-        O documento Json precisa ser uma lista de objetos.
-        A pesquisa é 'Case Insensitive' e trata caracteres acentuados como não acentuados.
+        Removes from the list the first document that match the informed filter, the json needs to be a 'list' otherwise it generates an error.
+        If N is not informed then all documents will be removed.
+        The filter is a dictionary with attributes and values, the search is 'Case Insensitive'.
+        Returns the number of documents removed from the list.
+
+        Examples:
+            jTeam.removeDocs(filters={'Name': 'Maria'})					# removes the elements whose 'Name' is equals to 'Maria'
+            jTeam.removeDocs(filters=[{'Name': 'Maria'}, {'Age': 30}])	# removes the elements whose 'Name' is equals to 'Maria' and 'Age' is equals to 30
+            jTeam.removeDocs(index=3)									# removes the fourth element from the list
 
         Args:
-            array (int): nome do atributo com a lista de itens, removeAttrib um item do documento Json, que precisa ser uma lista
-            index (int): se informado, corresponde ao índice da lista correspondente ao objeto a ser eliminado
-            filters (dict | list):  conjunto de condições para validar cada objeto da coleção\n
-                                    dict -> dicionário com os nomes dos atributos e expressão regular correspondentes como {'nome' : 'maria'}, os objetos que derem match serão retornados
-                                    list -> lista de condições (dict), se o objeto corresponder a uma das condições da lista será retornado
-            qty (int): indica a quantidade máxima de objetos a serem removidos, default igual a todos
+            position: position of the element to be removed.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            qty: maximum amount of documents to be removed, when "None" it will be all.
 
         Returns:
-            int: quantidade de objetos removidos
+            int: the number of documents removed from the list, allways 1.
         """
-        # se for informado o nome de atributo com lista de documentos
-        if array:
-            # foi informado o nome da coleção
-            # se foram informadas condições
-            if filters:
-                # pega o objeto com a lista de documentos
-                lst = self.get(array)
-                q = lst.removeDocs(filters=filters, qty=qty)
-
-            elif index:
-                # se foi informado um indice
-                # pega o objeto associado ao índice
-                lst = self.get(array)
-                q = lst.removeDocs(index=index)
-
-            else:
-                # senão está sem índice nem condição, limpa a lista
-                lst = self.value(array)
-                q = len(lst)
-                del lst[:]
-            # endif --
-
-            return q
-        # endif --
-
-        if index is not None:
+        if position is not None:
             # NÃO foi informado o nome da coleção
             # foi informado um indice
             if self._type != CONST_TYPE_ARRAY:
                 raise Exception(CONST_ERR_ARRAY)
 
-            del self._jdata[index]
+            del self._jdata[position]
 
             return 1
         # endif --
@@ -865,13 +778,13 @@ class jDocument(Sequence):
             # exclui os elementos listados
             for i in reversed(range(len(lstRemove))):
                 idel = lstRemove[i - 1]
-                self._jdata.remove(idel)
+                list(self._jdata).remove(idel)
             # endfor --
 
             return len(lstRemove)
         # endif --
 
-        if index is None:
+        if position is None:
             # NÃO foi informado o nome da coleção
             # NÃO foi informado um indice
             if self._type != CONST_TYPE_ARRAY:
@@ -885,28 +798,126 @@ class jDocument(Sequence):
 
         return 0
 
-    def findOneDoc(self, filters: any, flagMacros: bool = False) -> jDocument | None:
+    def findDocs(self, filters: dict | list, qty: int = None, flagMacros: bool = False) -> jDocument | None:
         """
-        Localiza o primeiro objeto que corresponder a um filtro informado (uma coleção de chave/valor).
-        O documento Json precisa ser uma lista de objetos.
-        A pesquisa é 'Case Insensitive' e trata caracteres acentuados como não acentuados.
+        It generates a list with the first N documents that correspond to the informed filter, the json needs to be a 'list' otherwise it generates an error.
+        If N is not informed then all documents will be returned.
+        The filter is a dictionary with attributes and values, the search is 'Case Insensitive'.
+        When "flagMacros" is "True" the routine will test macros provided through the filters. The recognized macros are:
+            IN:<value> --> tests whether the attribute's value is contained in <value>.
+            NIN:<value> --> tests if attribute value is not contained in <value>.
+            CT:<value> --> tests whether <value> is contained in the attribute value.
+            NCT:<value> --> tests if <value> is not contained in the attribute value.
+            RE:<RegExp> --> tests the attribute value matches the regular expression <RegExp>.
+
+        Examples:
+            jPerson = jTeam.findDocs(filters={'name': 'Maria'})
+            jPerson = jTeam.findDocs(filters={'name': 'CT:ria'}, flagMacros=True) 	# people whose name contains 'ria'
+            jPerson = jTeam.findDocs(filters={'name': 'NCT:ria'}, flagMacros=True) 	# people whose name does not contain 'ria'
+            jPerson = jTeam.findDocs(filters={'name': "RE:(g\w+)\W(g\w+)"}, flagMacros=True) 	# people whose name matches the regular expression
 
         Args:
-            filters (dict | list):  conjunto de condições para validar cada objeto da coleção\n
-                                    dict -> dicionário com os nomes dos atributos e expressão regular correspondentes como {'nome' : 'maria'}, os objetos que derem match serão retornados
-                                    list -> lista de condições (dict), se o objeto corresponder a uma das condições da lista será retornado
-            flagMacros: se TRUE então valida macros dentro do filtro (IN, NIN, RE, etc.)
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            qty: maximum amount of documents to be removed, when "None" it will be all
+            flagMacros: if "True" then it searches for macros in the values of the filter rules.
 
         Returns:
-            jDocument: jDocument com documento Json contendo documento localizado, ou None se não localizar nenhum.
+            jDocument: jDocument with Json document containing the list of found documents or None if not found any
+        """
+        if self._type != CONST_TYPE_ARRAY:
+            raise Exception(CONST_ERR_ARRAY)
+
+        self._findDocs_flagMacros = flagMacros
+
+        # se foi passado um dicionário de condições monta uma lista com apenas essa condição senão considera esta lista de condições
+        self._findDocs_lstFilters = [filters] if isinstance(filters, dict) else filters
+
+        # percorre a lista de objetos
+        self._findDocs_qty = qty if qty else -1
+
+        findList = list(filter(self._findDocs_TestDoc, self._jdata))
+
+        self._findDocs_lstFilters = None
+        self._findDocs_qty = None
+
+        if not findList:
+            return None
+
+        return jDocument(findList)
+
+    def findOneDoc(self, filters: dict | list, flagMacros: bool = False) -> jDocument | None:
+        """
+        Returns the first document that correspond to the informed filter, the json needs to be a 'list' otherwise it generates an error.
+        The filter is a dictionary with attributes and values, the search is 'Case Insensitive'.
+        When "flagMacros" is "True" the routine will test macros provided through the filters. The recognized macros are:
+            IN:<value> --> tests whether the attribute's value is contained in <value>.
+            NIN:<value> --> tests if attribute value is not contained in <value>.
+            CT:<value> --> tests whether <value> is contained in the attribute value.
+            NCT:<value> --> tests if <value> is not contained in the attribute value.
+            RE:<RegExp> --> tests the attribute value matches the regular expression <RegExp>.
+
+        Examples:
+            jPerson = jTeam.findOneDoc(filters={'name': 'Maria'})
+            jPerson = jTeam.findOneDoc(filters={'name': 'CT:ria'}, flagMacros=True) 	# first person whose name contains 'ria'
+            jPerson = jTeam.findOneDoc(filters={'name': 'NCT:ria'}, flagMacros=True) 	# first person whose name does not contain 'ria'
+            jPerson = jTeam.findOneDoc(filters={'name': "RE:(g\w+)\W(g\w+)"}, flagMacros=True) 	# first person whose name matches the regular expression
+
+        Args:
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            flagMacros: if "True" then it searches for macros in the values ​​of the filter rules.
+
+        Returns:
+            jDocument: json document containing the first documents located or None if not found any
         """
         jObj = self.findDocs(filters, qty=1, flagMacros=flagMacros)
 
         if jObj:
             return jObj.item(0)
-        # endif --
 
         return None
+
+    def findAnyDocs(self, lstFilters: list, qty: int = None) -> jDocument:
+        """
+        Searches for text within each document in the list and returns those that match the specified criteria.
+        This criterion is made up of a list of values and/or regular expressions.
+        The search is 'Case Insensitive' and treats accented characters as non-accented.
+
+        Examples:
+            jPeople = jTeam.findOneDoc(filters=["(g\w+)\W(g\w+)"])		# tests if the json document matches regular expression
+            jPeople = jTeam.findOneDoc(filters=["Maria", "Paulista"])	# tests whether the two texts are contained in the json document
+
+        Args:
+            lstFilters: list of search criteria that can be text or regular expressions.
+            qty: maximum number of documents to be searched, when "None" it will be all.
+
+        Returns:
+            jDocument: json document containing the list of documents located.
+        """
+        if self._type != CONST_TYPE_ARRAY:
+            raise Exception(CONST_ERR_ARRAY)
+
+        findList = []
+        q = 0
+
+        # pesquisa cada objeto do documento
+        for obj in self._jdata:
+            jObj = jDocument(obj)
+
+            # testa cada regexp contra a documento
+            for ft in lstFilters:
+                # se deu match, separa este documento e vai para o próximo
+                s = jObj.getJson(flagPretty=False)
+
+                if re.search(ft, s, flags=re.IGNORECASE):
+                    findList.append(obj)
+                    break
+
+            q += 1
+
+            if qty and q > qty:
+                break
+
+        return jDocument(findList)
 
     @staticmethod
     def _findDocs_TestAttrib(rule, val) -> bool:
@@ -944,7 +955,7 @@ class jDocument(Sequence):
         return rule == val
 
     def _findDocs_TestDoc(self, docDic: dict) -> bool:
-        if self._findDocs_qty and self._findDocs_qty < 1:
+        if not self._findDocs_qty:
             # está buscando uma quantidade específica de elementos
             # já localizou a quantidade necessária, ignora os demais
             return False
@@ -968,7 +979,7 @@ class jDocument(Sequence):
                 # endif --
 
                 if not self._findDocs_flagMacros:
-                    if ruleExpr != valAttr:
+                    if ruleExpr != str(valAttr):
                         return False
                     # endif --
 
@@ -978,255 +989,131 @@ class jDocument(Sequence):
             # endfor --
         # endfor --
 
-        if self._findDocs_qty:
+        if self._findDocs_qty > 0:
             self._findDocs_qty -= 1
         # endif
 
         return True
 
-    def findDocs(self, filters: any, qty: int = None, flagMacros: bool = False) -> jDocument | None:
+    def findAttribDocs(self, lstAttributes: list, qty: int = None) -> jDocument:
         """
-        Localiza todos os objetos que corresponderem a um filtro informado (uma coleção de chave/valor).
-        O documento Json precisa ser uma lista de objetos.
-        A pesquisa é 'Case Insensitive' e trata caracteres acentuados como não acentuados.
+        Returns a list of documents that contain a certain set of attributes, whose names are passed in 'lstAttrib'.
+
+        Examples:
+            jPerson = jTeam.findAttribDocs(lstAttrib=['name', 'address.street'])
 
         Args:
-            filters (dict | list):  conjunto de condições para validar cada objeto da coleção\n
-                                    dict -> dicionário com os nomes dos atributos e as condições pertinentes como:
-                                            {'nome': 'maria'} --> comparação simples, os 'nomes' iguais a 'maria' darão match
-                                            {'nome': 'RE:^mar'} --> compara com RegExp, os 'nomes' que começarem com 'mar' dão match
-                                            {'nome': 'IN:mar'} --> compara usando IN, os 'nomes' que contêm 'mar' dão match
-                                    list -> lista de condições (dict), se o objeto corresponder a uma das condições da lista será retornado
-            qty (int): indica a quantidade máxima de objetos a serem retornados, default igual a todos
-            flagMacros: se TRUE então valida macros dentro do filtro (IN, NIN, RE, etc.)
+            lstAttributes: list with the names of the attributes to be checked.
+            qty: maximum number of documents to be searched, when "None" it will be all.
 
         Returns:
-            jDocument: jDocument com documento Json contendo a lista de documentos localizados.
-                       ou None se não localizar nenhum
+            jDocument: jDocument with a json document containing the list of documents located.
         """
-        if self._type != CONST_TYPE_ARRAY:
-            raise Exception(CONST_ERR_ARRAY)
-
-        self._findDocs_flagMacros = flagMacros
-
-        # se foi passado um dicionário de condições monta uma lista com apenas essa condição senão considera esta lista de condições
-        self._findDocs_lstFilters = [filters] if isinstance(filters, dict) else filters
-
-        # percorre a lista de objetos
-        self._findDocs_qty = qty
-
-        findList = list(filter(self._findDocs_TestDoc, self._jdata))
-
-        self._findDocs_lstFilters = None
-        self._findDocs_qty = None
-
-        if not findList:
-            return None
-        # endif --
-
-        return jDocument(findList)
-
-    def findAttribDocs(self, lstAttrib: list, qty: int = None) -> jDocument:
-        """
-        Monta uma lista dos objetos que contém um certo conjunto de atributos
-
-        Args:
-            lstAttrib (list): lista com os nomes dos atributos
-            qty (int): indica a quantidade máxima de objetos a serem retornados, default igual a todos
-
-        Returns:
-            jDocument: jDocument com documento Json contendo a lista de documentos localizados.
-        """
-        filters = {at: '.*' for at in lstAttrib}
+        filters = {at: '.*' for at in lstAttributes}
 
         return self.findDocs(filters, qty)
 
-    def findAnyDocs(self, lstFilters: list, qty: int = None) -> jDocument:
-        """
-        Procura um texto dentro de cada documento da lista e retorna aqueles que corresponderem ao critério.
-        A pesquisa é 'Case Insensitive' e trata caracteres acentuados como não acentuados.
-
-        Args:
-            lstFilters (list): lista com uma ou mais 'regex' com o texto a ser procurado
-            qty (int): indica a quantidade máxima de objetos a serem retornados, default igual a todos
-
-        Returns:
-            jDocument: jDocument com documento Json contendo a lista de documentos localizados.
-        """
-        if self._type != CONST_TYPE_ARRAY:
-            raise Exception(CONST_ERR_ARRAY)
-
-        findList = []
-        q = 0
-
-        # pesquisa cada objeto do documento
-        for obj in self._jdata:
-            jObj = jDocument(obj)
-
-            # testa cada regexp contra a documento
-            for ft in lstFilters:
-                # se deu match, separa este documento e vai para o próximo
-                s = jObj.getJson(flagPretty=False)
-
-                if re.search(ft, s, flags=re.IGNORECASE):
-                    findList.append(obj)
-                    break
-                # endif --
-            # endfor --
-
-            q += 1
-
-            if qty and q > qty:
-                break
-            # endif --
-        # endfor --
-
-        return jDocument(findList)
-
     def sortDocs(self, attribute: str | dict | list) -> jDocument:
         """
-        Ordena a lista de documentos Json.
+        Sort the list of documents, the json needs to be a 'list' otherwise it generates an error.
+
+        Examples:
+            jTeam.sortDocs('Name')						# sort by name in ascending order
+            jTeam.sortDocs(['Name', 'Address.Street'])	# Sort by name and street in ascending order
+            jTeam.sortDocs({'Name', -1})				# sort by name in descending order
+            jTeam.sortDocs({'Name', 1})					# sort by name in ascending order
 
         Args:
-            attribute (str|dict|list): Nome do atributo ou dicionário com "atributo:ordem" ou uma lista de atributos (com dicionários).
-                                   Se for igual a 1 a ordem será crescente, se -1 será descrescente.
-
+            attribute (str|dict|list): attributes to be considered in the ordering.
+                                       You can enter a string with the name of the attribute or a list of names;
+                                       or you can enter a dictionary with the name of the attribute plus the ordering sequence or a list of dictionaries.
 
         Return:
-            self: retona o próprio documento Json já ordenado
+            self: json document itself already sorted.
         """
         if self._type != CONST_TYPE_ARRAY:
             raise Exception(CONST_ERR_ARRAY)
 
-        # se foi informado uma lista de atributos
         if isinstance(attribute, list):
+            # se foi informado uma lista de atributos
             list(map(lambda at: self.sortDocs(at), reversed(attribute)))
             return self
-        # endif --
 
         if isinstance(attribute, str):
             # foi informado apenas o nome do atributo
-            # self._jdata = sorted(self._jdata, key=lambda i: i[attribute], reverse=False)
-            self._jdata.sort(key=lambda e: (not e[attribute], e[attribute]))
+            list(self._jdata).sort(key=lambda e: (not e[attribute], e[attribute]))
 
         else:
             # foi informado um dicionário com o nome do atributo e a sequência (0 ou 1)
             for sortAttrib, order in attribute.items():
-                # self._jdata = sorted(self._jdata, key=lambda i: i[sortAttrib], reverse=(False if order == 1 else True))
-                self._jdata.sort(reverse=(True if order != 1 else False), key=lambda e: (not e[sortAttrib], e[sortAttrib]))
-            # endfor --
-        # endif --
+                list(self._jdata).sort(reverse=(True if order != 1 else False), key=lambda e: (not e[sortAttrib], e[sortAttrib]))
 
         return self
 
-    def __deepcopy__(self, memodict=None) -> jDocument:
-        return self.clone()
-
-    def clone(self) -> jDocument:
+    def searchDocs(self, jOrFilters: jDocument = None, exprFilter: str = None, qty: int = None) -> jDocument:
         """
-        Cria uma cópia do documento.
+        Searches the list of documents and returns those that match a set of conditions.
+        These conditions can be exposed through a "jDocument" or a Python expression.
+        In the case of the Python expression, the attributes of the documents in the list are referenced through the "jDoc" variable.
+        Search using Python expression is only recommended for small lists as it is slower by using eval().
 
-        Returns:
-            jDocument: cópia do documento
-        """
-        return jDocument(deepcopy(self._jdata))
+        Examples:
+            # search for documents with 'Name' equal to 'Maria' and 'Age' greater than 30, or 'Name' equal to 'Marta' and age less than 20
+            jOrFilters=[
+                {
+                    'And': [
+                        {'Attribute': 'Name', 'Operator': 'eq', 'Value': 'Maria'},
+                        {'Attribute': 'Age', 'Operator': 'gt', 'Value': 30}
+                    ]
+                },
+                {
+                    'And': [
+                        {'Attribute': 'Name', 'Operator': 'eq', 'Value': 'Marta'},
+                        {'Attribute': 'Age', 'Operator': 'lt', 'Value': 20}
+                    ]
+                }
 
-    def copyFrom(self, jDoc: jDocument):
-        """
-        Copia todos os atributos do documento de um outro documento, fornecido como parâmetro
+            ]
+            jPerson = jTeam.searchOneDoc(jOrFilters=jOrFilters)
+
+            # alternative with Python expression
+            jPerson = jTeam.searchOneDoc(exprFilter="(jDoc['Name'] == 'Maria' and jDoc['Age'] > 30) or (jDoc['Name'] == 'Marta' and jDoc['Age'] < 20)")
+
+
+        When using jOrFilters, the operator options are:
+            eq = equal
+            dif = not equal
+            lt = less than
+            lteq = less than or equal
+            gt = greater than
+            gteq = greater than or equal
+            ct = contain
+            nct = not contain
+            re = RegExp
+            re = RegExp
+            in = contained in a list
+            nin = NOT contained in a list
+
+            If the field name is "all" then a text search will be performed within the JSON document
+            ** In this case, only the "contain" and "not contain" operators are accepted
 
         Args:
-            jDoc: documento do qual serão copiados os atributos
-
-        """
-        self.clear()
-        attribDict = jDoc.getAttributes(False)
-        for at, tp in attribDict.items():
-            value = jDoc.value(at)
-            if tp == CONST_TYPE_OBJECT:
-                self.set({at: value.copy()})
-            elif CONST_TYPE_ARRAY in tp:
-                self.set({at: list(value)})
-            else:
-                self.set({at: value})
-            # endif --
-        # endfor --
-
-    def searchOneDoc(self, jFilters: jDocument) -> jDocument:
-        return self.searchDocs(jFilters, qty=1)
-
-    def _searchDocs_TestDoc(self, docdic) -> bool:
-        if self._searhDocs_jOrFilters and self.testDoc(jDocument(docdic), self._searhDocs_jOrFilters):
-            return True
-        # endif --
-
-        if self._searhDocs_exprFilter:
-            # 'jDoc' é uma variável para expressão de validação
-            jDoc = jDocument(docdic)
-            if eval(self._searhDocs_exprFilter):
-                return True
-            # endif --
-        # endif --
-
-        return False
-
-    def searchDocs(self, jOrFilters: jDocument, exprFilter: str = None, qty: int = None) -> jDocument:
-        """
-        Pesquisa a lista de documento e retorna aqueles que corresponderem a um conjunto de condições avançadas de banco de dados.
-        Args:
-            jOrFilters: conjunto de condições na forma "attributo operador valor", por exemplo
-                [
-                    {
-                        and:
-                            [
-                                {attribute: 'nome', operator: 'eq', value: 'jose'},
-                                {attribute: 'idade', operator: 'gt', value: 20}
-                            ]
-                    {,
-                    {
-                        and:
-                        [
-                            {attribute: 'nome', operator: 'eq', value: 'maria'},
-                            {attribute: 'idade', operator: 'ltqe', value: 30}
-                        ]
-                    }
-                ]
-
-                equivale a: (nome = 'jose' AND idade > 20) OR (nome = 'maria' AND idade <= 30)
-
-                As opções para operador são:
-                    eq = equal
-                    dif = not equal
-                    lt = less than
-                    lteq = less than or equal
-                    gt = greater than
-                    gteq = greater than or equal
-                    ct = contain
-                    nct = not contain
-                    re = RegExp
-                    in = contido numa lista
-                    nin = NÃO contido numa lista
-
-                Se o nome do campo for "all" então será feita uma pesquisa de um texto dentro do documento JSON
-                    ** Neste caso, são aceitos somente os operadores "contain" e "not contain"
-
-            exprFilter: expressão Python com a condição de pesquisa, para referenciar os atributos do documento
-                  utiliza-se a variável "jDoc". Por exmeplo, "jDoc.get('Idade') > 18"
-            qty: indica a quantidade máxima de registros desejada no resultado
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+            qty: maximum number of documents to be searched, when "None" it will be all.
 
         Returns:
-            jDocument: lista de documentos localizados
+            jDocument: list of documents found
         """
         if self._type != CONST_TYPE_ARRAY:
-            if self.testDoc(jDocument(self._jdata), jOrFilters):
+            if self._testDoc(jDocument(self._jdata), jOrFilters):
                 return jDocument([jDocument(self._jdata)])
             else:
                 return jDocument([])
-        # endif --
 
         self._searhDocs_jOrFilters = jOrFilters
         self._searhDocs_exprFilter = exprFilter
-        self._searhDocs_qty = qty
+        self._searhDocs_qty = qty if qty else -1
 
         findList = list(filter(self._searchDocs_TestDoc, self._jdata))
 
@@ -1236,8 +1123,86 @@ class jDocument(Sequence):
 
         return jDocument(findList)
 
-    @staticmethod
-    def testDoc(jDoc: jDocument, jOrFilters: jDocument) -> bool:
+    def searchOneDoc(self, jOrFilters: jDocument = None, exprFilter: str = None) -> jDocument:
+        """
+        Searches for the firts document that match a set of conditions.
+        These conditions can be exposed through a "jDocument" or a Python expression.
+        In the case of the Python expression, the attributes of the documents in the list are referenced through the "jDoc" variable.
+        Search using Python expression is only recommended for small lists as it is slower by using eval().
+
+        Examples:
+            # search for documents with 'Name' equal to 'Maria' and 'Age' greater than 30, or 'Name' equal to 'Marta' and age less than 20
+            jOrFilters=[
+                {
+                    'And': [
+                        {'Attribute': 'Name', 'Operator': 'eq', 'Value': 'Maria'},
+                        {'Attribute': 'Age', 'Operator': 'gt', 'Value': 30}
+                    ]
+                },
+                {
+                    'And': [
+                        {'Attribute': 'Name', 'Operator': 'eq', 'Value': 'Marta'},
+                        {'Attribute': 'Age', 'Operator': 'lt', 'Value': 20}
+                    ]
+                }
+
+            ]
+            jPerson = jTeam.searchOneDoc(jOrFilters=jOrFilters)
+
+            # alternative with Python expression
+            jPerson = jTeam.searchOneDoc(exprFilter="(jDoc['Name'] == 'Maria' and jDoc['Age'] > 30) or (jDoc['Name'] == 'Marta' and jDoc['Age'] < 20)")
+
+
+        When using jOrFilters, the operator options are:
+            eq = equal
+            dif = not equal
+            lt = less than
+            lteq = less than or equal
+            gt = greater than
+            gteq = greater than or equal
+            ct = contain
+            nct = not contain
+            re = RegExp
+            re = RegExp
+            in = contained in a list
+            nin = NOT contained in a list
+
+            If the field name is "all" then a text search will be performed within the JSON document
+            ** In this case, only the "contain" and "not contain" operators are accepted
+
+        Args:
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+            jDocument: document found
+        """
+        jDoc = self.searchDocs(jOrFilters=jOrFilters, exprFilter=exprFilter, qty=1)
+        return jDoc[0] if jDoc else None
+
+    def _searchDocs_TestDoc(self, docdic) -> bool:
+        if not self._searhDocs_qty:
+            return False
+        # endif --
+
+        if self._searhDocs_jOrFilters and self._testDoc(jDocument(docdic), self._searhDocs_jOrFilters):
+            return True
+        # endif --
+
+        if self._searhDocs_exprFilter:
+            # 'jDoc' é uma variável para expressão de validação
+            jDoc = jDocument(docdic)
+            if eval(self._searhDocs_exprFilter):
+                return True
+            # endif --
+            if jDoc:
+                pass
+            # endif --
+        # endif --
+
+        return False
+
+    def _testDoc(self, jDoc: jDocument, jOrFilters: jDocument) -> bool:
         """
         Testa um documento contra um filtro de pesquisa e informa se correspomde ou não.
 
@@ -1339,23 +1304,29 @@ class jDocument(Sequence):
                 if not flagFind:
                     # basta uma condição ser negativa que invalida o AND filtro
                     break
+                # endif --
             # endfor --
 
             if flagFind:
+                # todas as condições são verdadeiras
+                if self._searhDocs_qty > 0:
+                    self._searhDocs_qty -= 1
+                # endif --
                 break
+            # endif --
         # endfor --
 
         return flagFind
 
-    def _getListOfValues(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> list:
+    def _getListOfValues(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> list:
         if self._type != CONST_TYPE_ARRAY:
             raise Exception(CONST_ERR_ARRAY)
 
-        if lstFilter:
-            jList = self.findDocs(lstFilter)
+        if filters:
+            jList = self.findDocs(filters)
 
-        elif jFilter or exprFilter:
-            jList = self.searchDocs(jOrFilters=jFilter, exprFilter=exprFilter)
+        elif jOrFilters or exprFilter:
+            jList = self.searchDocs(jOrFilters=jOrFilters, exprFilter=exprFilter)
 
         else:
             jList = jDocument(self._jdata)
@@ -1365,54 +1336,352 @@ class jDocument(Sequence):
             return []
         # endif --
 
-        lstValues = [jDoc.get(attrib) for jDoc in jList if jDoc[attrib]]
+        lstValues = [jDoc.get(attribute) for jDoc in jList if jDoc[attribute]]
 
         return lstValues
 
-    def count(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
+    def count(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the number of documents in the list whose 'attrib' attribute is filled.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the number of documents in the list whose 'attrib' attribute is filled.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
         return len(lstValues)
 
-    def sum(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return sum(lstValues) if len(lstValues) > 0 else None
+    def sum(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the sum of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
 
-    def min(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return min(lstValues) if len(lstValues) > 0 else None
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
 
-    def max(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return max(lstValues) if len(lstValues) > 0 else None
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
 
-    def mean(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return statistics.mean(lstValues) if len(lstValues) > 0 else None
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
 
-    def mode(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return statistics.mode(lstValues) if len(lstValues) > 0 else None
+        Returns:
+             float: the sum of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return sum(lstValues) if lstValues else None
 
-    def median(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return statistics.median(lstValues) if len(lstValues) > 0 else None
+    def min(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the minimum of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
 
-    def median_low(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return statistics.median_low(lstValues) if len(lstValues) > 0 else None
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
 
-    def median_high(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return statistics.median_high(lstValues) if len(lstValues) > 0 else None
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
 
-    def median_grouped(self, attrib: str, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return statistics.median_grouped(lstValues) if len(lstValues) > 0 else None
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
 
-    def quantile(self, attrib: str, quantile: float, method: str = 'linear', lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return numpy.quantile(lstValues, quantile, method=method) if len(lstValues) > 0 else None
+        Returns:
+             float: the minimum of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return min(lstValues) if lstValues else None
 
-    def ocorrences(self, attrib: str, valueToCount, lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> int | None:
-        lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
-        return lstValues.count(valueToCount) if len(lstValues) > 0 else None
+    def max(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the maximum of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the maximum of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return max(lstValues) if lstValues else None
+
+    def mean(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the mean of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the mean of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return statistics.mean(lstValues) if lstValues else None
+
+    def mode(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the mode of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the mode of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return statistics.mode(lstValues) if lstValues else None
+
+    def median(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the median of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the median of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return statistics.median(lstValues) if lstValues else None
+
+    def median_low(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the median low of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the median low of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return statistics.median_low(lstValues) if lstValues else None
+
+    def median_high(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the median high of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the median high of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return statistics.median_high(lstValues) if lstValues else None
+
+    def median_grouped(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+        """
+        Returns the grouped median of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the grouped median of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return statistics.median_grouped(lstValues) if lstValues else None
+
+    # def quantile(self, attrib: str, quantile: float, method: str = 'linear', lstFilter: list = None, jFilter: jDocument = None, exprFilter: str = None) -> float | None:
+    #     lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
+    #     return numpy.quantile(lstValues, quantile, method=method) if lstValues else None
+
+    def ocorrences(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> dict | None:
+        """
+        Returns the number of ocurrencies of the values of a specific attribute of the documents in the list.
+        Only documents that match the rules entered in one of the filters will be considered.
+        If no filter is specified then all documents will be considered.
+
+        Examples:
+            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+
+            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
+            jTeam.count(attrib='Name', filters={"Age": 30})
+
+        Args:
+            attribute: name of the attribute to be counted.
+            filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
+            jOrFilters: json with the search criteria.
+            exprFilter: Python expression with search criteria
+
+        Returns:
+             float: the number of ocurrencies of the values of a specific attribute of the documents in the list.
+        """
+        lstValues = self._getListOfValues(attribute, filters, jOrFilters, exprFilter)
+        return dict((item, lstValues.count(item)) for item in set(lstValues)) if lstValues else None
+
+
+class DotDict(dict):
+    def __bool__(self):
+        return True
+
+    def __getattr__(self, key):
+        try:
+            # se o atributo for um dict, retorna o dict
+            if isinstance(self[CONST_JDATA][key], dict):
+                return DotDict({CONST_JDATA: self[CONST_JDATA][key]})
+
+            # se o atributo for um list, retorna o jDocument
+            elif isinstance(self[CONST_JDATA][key], list):
+                return jDocument(self[CONST_JDATA][key])
+
+            # senão retorna o elemento
+            else:
+                return self[CONST_JDATA][key]
+
+        except KeyError as k:
+            raise AttributeError(k)
+
+    def __setattr__(self, key, value):
+        self[CONST_JDATA][key] = value
+        # self._jdata.set({key, value})
+
+    def __delattr__(self, key):
+        try:
+            del self[CONST_JDATA][key]
+        except KeyError as k:
+            raise AttributeError(k)
+
+
+class jDotDict(dict):
+    def __bool__(self):
+        return True
+
+    def __getattr__(self, key):
+        try:
+            at = self[CONST_JDATA][key]
+
+            # se o atributo for um dict, retorna o dict
+            if isinstance(at, dict):
+                return jDotDict({CONST_JDATA: at})
+
+            # se o atributo for um list
+            elif isinstance(at, list):
+                # se o primeiro elemento da lista for um dict (lista de documentos), retorna um jDocument com a lista
+                # senão retorna o elemento
+                return jDocument(at) if at and isinstance(at[0], dict) else jDotDict({CONST_JDATA: at})
+
+            # senão retorna o elemento
+            else:
+                return at
+
+        except KeyError as k:
+            raise AttributeError(k)
+
+    def __setattr__(self, key, value):
+        self[CONST_JDATA][key] = value
+
+    def __delattr__(self, key):
+        try:
+            del self[CONST_JDATA][key]
+        except KeyError as k:
+            raise AttributeError(k)

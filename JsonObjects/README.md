@@ -7,8 +7,7 @@ Foobar is a Python library for dealing with word pluralization.
 
 <H2>Content</H2>
 <p><b>jObject class</b> - bla bla bla</p>
-<p><b>json2table function</b> - bla bla bla</p>
-<p><b>dict2table function</b> -bla bla bla</p>
+
 <H2>Usage</H2>
 <p></p><b>import JsonObjects</b></p>
 

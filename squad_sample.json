@@ -27,7 +27,7 @@
     },
     {
       "name": "Eternal Flame",
-      "age": 1000000,
+      "age": 30,
       "secretIdentity": "Unknown",
       "powers": [
         "Immortality",
@@ -51,6 +51,5 @@
 		"name": "weuyr",
 		"priority": 1
 	}
-	  
   ]
 }

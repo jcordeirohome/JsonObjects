@@ -154,7 +154,7 @@ class jDocument(Sequence):
         if self._type == CONST_TYPE_ARRAY:
             self.removeDocs(position=item)
         else:
-            self.removeAttrib(attribute=item)
+            self.removeAttrib(item)
 
     def __contains__(self, item):
         """
@@ -325,7 +325,7 @@ class jDocument(Sequence):
         q = 0
         if isinstance(attribute, list):
             for at in attribute:
-                q += self.removeAttrib(attribute=at)
+                q += self.removeAttrib(at)
             return q
 
         # if the Json document is an object
@@ -357,14 +357,14 @@ class jDocument(Sequence):
         q = 0
         for obj in self:
             # removes the attribute on each object in the list
-            q += obj.removeAttrib(attribute=attribute)
+            q += obj.removeAttrib(attribute)
 
         return q
 
     def value(self, attribute=None, defaultValue: any = None, flagRaiseError: bool = False) -> any:
         """
-        Returns the raw data value of an attribute in its native format (whether a "dict" or "list" returns a pointer). If the name of any attribute is not informed, then it returns the object itself.
-        The attribute name can be given using the json punctuation convention.
+        Returns the raw data value of an attribute in its native format (whether a "dict" or "list" returns a pointer).
+        The attribute name can be given using the json dot convention.
 
         Examples:
             jSquad.get('team[1].address.street') 	# retorna um 'string'
@@ -491,7 +491,8 @@ class jDocument(Sequence):
 
     def get(self, attribute: str, defaultValue=None, flagRaiseError: bool = False, flagReturnEmptyListAsDoc: bool = False) -> any:
         """
-        Similar to value(), but if the returned value is a 'dict' or 'list' then the returned value is converted to "jDocument".
+        Returns the data value of an attribute. Tf the returned value is a 'dict' or 'list' then the returned value is converted to "jDocument".
+        The attribute name can be given using the json dot convention.
 
         Examples:
             jSquad.get('team[1].address.street') 	# retorns a 'string'
@@ -693,19 +694,19 @@ class jDocument(Sequence):
             obj = item
             if item.type == CONST_TYPE_ARRAY:
                 # it is a list
-                list(self._jdata).extend(item.value())
+                self._jdata.extend(item.value())
             else:
                 # it is a dict
-                list(self._jdata).append(item.value())
+                self._jdata.append(item.value())
             # endif --
 
         elif isinstance(item, dict):
             obj = jDocument(item)
-            list(self._jdata).append(item)
+            self._jdata.append(item)
 
         elif isinstance(item, list):
             obj = jDocument(item)
-            list(self._jdata).extend(item)
+            self._jdata.extend(item)
 
         else:
             raise Exception(CONST_ERR_ITEM)
@@ -778,7 +779,7 @@ class jDocument(Sequence):
             # exclui os elementos listados
             for i in reversed(range(len(lstRemove))):
                 idel = lstRemove[i - 1]
-                list(self._jdata).remove(idel)
+                self._jdata.remove(idel)
             # endfor --
 
             return len(lstRemove)
@@ -1041,12 +1042,12 @@ class jDocument(Sequence):
 
         if isinstance(attribute, str):
             # foi informado apenas o nome do atributo
-            list(self._jdata).sort(key=lambda e: (not e[attribute], e[attribute]))
+            self._jdata.sort(key=lambda e: (not e[attribute], e[attribute]))
 
         else:
             # foi informado um dicionário com o nome do atributo e a sequência (0 ou 1)
             for sortAttrib, order in attribute.items():
-                list(self._jdata).sort(reverse=(True if order != 1 else False), key=lambda e: (not e[sortAttrib], e[sortAttrib]))
+                self._jdata.sort(reverse=(True if order != 1 else False), key=lambda e: (not e[sortAttrib], e[sortAttrib]))
 
         return self
 
@@ -1125,7 +1126,7 @@ class jDocument(Sequence):
 
     def searchOneDoc(self, jOrFilters: jDocument = None, exprFilter: str = None) -> jDocument:
         """
-        Searches for the firts document that match a set of conditions.
+        Searches for the first document that match a set of conditions.
         These conditions can be exposed through a "jDocument" or a Python expression.
         In the case of the Python expression, the attributes of the documents in the list are referenced through the "jDoc" variable.
         Search using Python expression is only recommended for small lists as it is slower by using eval().
@@ -1372,11 +1373,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate de sum value of 'Age' for 'Age' > 30
+            jTeam.max(attrib='Age', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate de sum value of 'Age' for 'Name' equals to 'Maria'
+            jTeam.max(attrib='Name', filters={"Name": 'Maria'})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1397,11 +1398,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate de min value of 'Age' for 'Age' > 30
+            jTeam.max(attrib='Age', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate de min value of 'Age' for 'Name' equals to 'Maria'
+            jTeam.max(attrib='Name', filters={"Name": 'Maria'})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1422,11 +1423,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate de max value of 'Age' for 'Age' > 30
+            jTeam.max(attrib='Age', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate de max value of 'Age' for 'Name' equals to 'Maria'
+            jTeam.max(attrib='Name', filters={"Name": 'Maria'})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1447,11 +1448,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate de the mean form then documents having the 'Name' attribute filled in and with 'Age' > 30
+            jTeam.mean(attrib='Name', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate de the mean form then documents having attribute 'Name' filled in and with 'Age' = 30
+            jTeam.mean(attrib='Name', filters={"Age": 30})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1472,11 +1473,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate the mode of the values of 'Name' with 'Age' > 18
+            jTeam.mode(attrib='Name', exprFilter="jDoc['Age'] > 18")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate the mode of the values of 'Name' with 'Age' = 18
+            jTeam.modet(attrib='Name', filters={"Age": 18})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1497,11 +1498,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate the median of the values of 'Name' with 'Age' > 18
+            jTeam.median(attrib='Name', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate the median of the values of 'Name' with 'Age' = 18
+            jTeam.median(attrib='Name', filters={"Age": 18})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1522,11 +1523,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate the median of the values of 'Name' with 'Age' > 18
+            jTeam.median_low(attrib='Name', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate the median of the values of 'Name' with 'Age' = 18
+            jTeam.median_low(attrib='Name', filters={"Age": 18})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1547,11 +1548,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate the median of the values of 'Name' with 'Age' > 18
+            jTeam.median_high(attrib='Name', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate the median of the values of 'Name' with 'Age' = 18
+            jTeam.median_high(attrib='Name', filters={"Age": 18})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1572,11 +1573,11 @@ class jDocument(Sequence):
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate the median of the values of 'Name' with 'Age' > 18
+            jTeam.median_grouped(attrib='Name', exprFilter="jDoc['Age'] > 30")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate the median of the values of 'Name' with 'Age' = 18
+            jTeam.median_grouped(attrib='Name', filters={"Age": 18})
 
         Args:
             attribute: name of the attribute to be counted.
@@ -1594,18 +1595,18 @@ class jDocument(Sequence):
     #     lstValues = self._getListOfValues(attrib, lstFilter, jFilter, exprFilter)
     #     return numpy.quantile(lstValues, quantile, method=method) if lstValues else None
 
-    def ocorrences(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> dict | None:
+    def occurrences(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> dict | None:
         """
-        Returns the number of ocurrencies of the values of a specific attribute of the documents in the list.
+        Returns the number of occurrences of the values of a specific attribute of the documents in the list.
         Only documents that match the rules entered in one of the filters will be considered.
         If no filter is specified then all documents will be considered.
 
         Examples:
-            # counts how many documents have the 'Name' attribute filled in and with 'Age' > 30
-            jTeam.count(attrib='Name', exprFilter="jDoc['Age'] > 30")
+            # calculate the number of occurrences for each 'Name' with 'Age' > 18
+            jTeam.occurrences(attrib='Name', exprFilter="jDoc['Age'] > 18")
 
-            # counts how many documents have the attribute 'Name' filled in and with 'Age' = 30
-            jTeam.count(attrib='Name', filters={"Age": 30})
+            # calculate the number of occurrences for each 'Name' with 'Age' = 18
+            jTeam.occurrences(attrib='Name', filters={"Age": 18)
 
         Args:
             attribute: name of the attribute to be counted.

@@ -18,7 +18,7 @@ print(f"IsArray = {jProducts.isArray()}")
 print(f"Num of itens = {len(jProducts)}")
 print(f"Item number 3 = {jProducts[3]}")
 print(f"Num of itens of type 'fruit' = {jProducts.count(attribute='title', filters=[{'type': 'fruit'}])}")
-print(f"Num of itens per type = {jProducts.ocorrences(attribute='type')}")
+print(f"Num of itens per type = {jProducts.occurrences(attribute='type')}")
 print(f"Max price = {jProducts.max('features.price')}")
 print(f"Mean price = {jProducts.mean('features.price')}")
 

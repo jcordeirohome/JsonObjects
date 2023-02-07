@@ -723,7 +723,7 @@ class jDocument(Sequence):
         Examples:
             jTeam.removeDocs(filters={'Name': 'Maria'})					# removes the elements whose 'Name' is equals to 'Maria'
             jTeam.removeDocs(filters=[{'Name': 'Maria'}, {'Age': 30}])	# removes the elements whose 'Name' is equals to 'Maria' and 'Age' is equals to 30
-            jTeam.removeDocs(index=3)									# removes the fourth element from the list
+            jTeam.removeDocs(position=3)								# removes the fourth element from the list
 
         Args:
             filters: dictionary or dictionary list with attribute and value to filter the documents to be removed from the list.
@@ -743,7 +743,7 @@ class jDocument(Sequence):
         Examples:
             jTeam.removeDocs(filters={'Name': 'Maria'})					# removes the elements whose 'Name' is equals to 'Maria'
             jTeam.removeDocs(filters=[{'Name': 'Maria'}, {'Age': 30}])	# removes the elements whose 'Name' is equals to 'Maria' and 'Age' is equals to 30
-            jTeam.removeDocs(index=3)									# removes the fourth element from the list
+            jTeam.removeDocs(position=3)								# removes the fourth element from the list
 
         Args:
             position: position of the element to be removed.
@@ -980,7 +980,7 @@ class jDocument(Sequence):
                 # endif --
 
                 if not self._findDocs_flagMacros:
-                    if ruleExpr != str(valAttr):
+                    if str(ruleExpr) != str(valAttr):
                         return False
                     # endif --
 
@@ -1319,7 +1319,7 @@ class jDocument(Sequence):
 
         return flagFind
 
-    def _getListOfValues(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> list:
+    def _getListOfValues(self, attribute: str, filters: dict | list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> list:
         if self._type != CONST_TYPE_ARRAY:
             raise Exception(CONST_ERR_ARRAY)
 
@@ -1341,7 +1341,7 @@ class jDocument(Sequence):
 
         return lstValues
 
-    def count(self, attribute: str, filters: list = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
+    def count(self, attribute: str, filters: list | dict = None, jOrFilters: jDocument = None, exprFilter: str = None) -> float | None:
         """
         Returns the number of documents in the list whose 'attrib' attribute is filled.
         Only documents that match the rules entered in one of the filters will be considered.

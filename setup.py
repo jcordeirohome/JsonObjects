@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 setup(
     name='jDocument',
     packages=find_packages(include=['jDocument']),
-    version='0.1.9',
+    version='0.1.11',
     description='The jDocument class allows you to encapsulate a json document (dict or a list) and perform a lot of operations to read, update and add data.',
     description_content_type='text/plain',
     long_description=long_description,
